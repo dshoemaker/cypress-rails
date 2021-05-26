@@ -10,7 +10,7 @@ module CypressRails
       @connections = gather_connections
       @connections.each do |connection|
         connection.begin_transaction joinable: false, _lazy: false
-        connection.pool.lock_thread = true
+        connection.pool.lock_thread = true if thread_lockable?(connection)
       end
 
       # When connections are established in the future, begin a transaction too
@@ -26,7 +26,7 @@ module CypressRails
 
           if connection && !@connections.include?(connection)
             connection.begin_transaction joinable: false, _lazy: false
-            connection.pool.lock_thread = true
+            connection.pool.lock_thread = true if thread_lockable?(connection)
             @connections << connection
           end
         end
@@ -42,7 +42,7 @@ module CypressRails
 
       @connections.each do |connection|
         connection.rollback_transaction if connection.transaction_open?
-        connection.pool.lock_thread = false
+        connection.pool.lock_thread = false if thread_lockable?(connection)
       end
       @connections.clear
 
@@ -68,7 +68,13 @@ module CypressRails
     # need to share a connection pool so that the reading connection
     # can see data in the open transaction on the writing connection.
     def setup_shared_connection_pool
+      return unless ActiveRecord::TestFixtures.respond_to?(:setup_shared_connection_pool)
       ActiveRecord::TestFixtures.instance_method(:setup_shared_connection_pool).bind(self).call
+    end
+
+    # lock_thread on pool is unavailable in ActiveRecord <= 5.1
+    def thread_lockable?(connection)
+      connection.pool.respond_to?(:lock_thread)
     end
   end
 end

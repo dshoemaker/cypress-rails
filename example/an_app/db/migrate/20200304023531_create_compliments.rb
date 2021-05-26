@@ -1,4 +1,4 @@
-class CreateCompliments < ActiveRecord::Migration[6.0]
+class CreateCompliments < ActiveRecord::Migration[5.0]
   def change
     create_table :compliments do |t|
       t.string :text
